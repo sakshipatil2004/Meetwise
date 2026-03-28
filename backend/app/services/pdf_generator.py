@@ -56,7 +56,6 @@ def generate_pdf_report(
     )
 
     elements = []
-
     # --------------------
     # Header
     # --------------------
@@ -64,7 +63,6 @@ def generate_pdf_report(
     elements.append(Paragraph(f"<b>Date:</b> {meeting_date}", normal_style))
     elements.append(Paragraph(f"<b>Time:</b> {meeting_time}", normal_style))
     elements.append(Spacer(1, 0.25 * inch))
-
     # --------------------
     # Participants
     # --------------------
@@ -81,14 +79,12 @@ def generate_pdf_report(
         ]))
         elements.append(participant_table)
         elements.append(Spacer(1, 0.3 * inch))
-
     # --------------------
     # Executive Summary
     # --------------------
     elements.append(Paragraph("Executive Summary", heading_style))
     elements.append(Paragraph(summary, normal_style))
     elements.append(Spacer(1, 0.25 * inch))
-
     # --------------------
     # Key Highlights
     # --------------------
@@ -97,7 +93,6 @@ def generate_pdf_report(
         for h in highlights:
             elements.append(Paragraph(f"• {h}", normal_style))
         elements.append(Spacer(1, 0.25 * inch))
-
     # --------------------
     # Action Items
     # --------------------
@@ -118,7 +113,6 @@ def generate_pdf_report(
         ]))
         elements.append(task_table)
         elements.append(Spacer(1, 0.3 * inch))
-
     # --------------------
     # Important Dates
     # --------------------
@@ -135,7 +129,6 @@ def generate_pdf_report(
         ]))
         elements.append(date_table)
         elements.append(Spacer(1, 0.3 * inch))
-
     # --------------------
     # Attachments
     # --------------------
@@ -145,7 +138,6 @@ def generate_pdf_report(
             elements.append(Paragraph(f"- {att}", normal_style))
     else:
         elements.append(Paragraph("Attachments / References: None", normal_style))
-
     # --------------------
     # Footer
     # --------------------

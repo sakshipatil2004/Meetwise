@@ -3,7 +3,6 @@ import streamlit as st
 import requests
 import time
 import os
-
 # -------------------------------
 # CONFIG
 # -------------------------------
@@ -16,7 +15,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
-
 # -------------------------------
 # GLOBAL HEADER (sky blue)
 # -------------------------------
@@ -57,7 +55,6 @@ st.markdown("""
         </div>
     </div>
 """, unsafe_allow_html=True)
-
 # -------------------------------
 # MAIN PAGE
 # -------------------------------
@@ -89,7 +86,6 @@ st.markdown('<div class="main-title">MeetWise — AI Meeting Summary Assistant</
 st.markdown('<div class="sub-text">Upload your meeting audio and get an automatically generated summary with calendar insights</div>', unsafe_allow_html=True)
 
 st.markdown("---")
-
 # -------------------------------
 # FILE UPLOAD SECTION
 # -------------------------------
