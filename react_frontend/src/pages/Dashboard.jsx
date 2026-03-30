@@ -12,13 +12,36 @@ const Dashboard = () => {
 
     const reportsPerPage = 5;
 
+    // 🔐 Auth Guard
     useEffect(() => {
-        if (!user) navigate("/");
+        if (!user) {
+            navigate("/");
+        }
+    }, [user, navigate]);
 
-        const storedReports =
-            JSON.parse(localStorage.getItem("reports")) || [];
-        setReports(storedReports);
-    }, []);
+    // 📥 Fetch Reports
+    useEffect(() => {
+        const fetchReports = async () => {
+            try {
+                const res = await fetch(
+                    `http://127.0.0.1:8000/api/reports/${user.id}`
+                );
+
+                if (!res.ok) {
+                    throw new Error("Failed to fetch reports");
+                }
+
+                const data = await res.json();
+                setReports(data);
+            } catch (error) {
+                console.error("Error fetching reports:", error);
+            }
+        };
+
+        if (user) {
+            fetchReports();
+        }
+    }, [user]);
 
     // 🔍 Filter Reports
     const filteredReports = reports.filter((report, index) =>
@@ -39,16 +62,12 @@ const Dashboard = () => {
         filteredReports.length / reportsPerPage
     );
 
-    // 🗑 Delete Report
-    const deleteReport = (jobId) => {
+    // 🗑 Delete Report (Frontend only for now)
+    const deleteReport = (reportId) => {
         const updatedReports = reports.filter(
-            (r) => r.jobId !== jobId
+            (r) => r.id !== reportId
         );
         setReports(updatedReports);
-        localStorage.setItem(
-            "reports",
-            JSON.stringify(updatedReports)
-        );
     };
 
     return (
@@ -78,7 +97,11 @@ const Dashboard = () => {
                         <h3>Total Tasks</h3>
                         <p>
                             {reports.reduce(
-                                (acc, r) => acc + (r.tasks?.length || 0),
+                                (acc, r) =>
+                                    acc +
+                                    (r.tasks
+                                        ? JSON.parse(r.tasks).length
+                                        : 0),
                                 0
                             )}
                         </p>
@@ -95,12 +118,12 @@ const Dashboard = () => {
                 ) : (
                     currentReports.map((report, index) => (
                         <div
-                            key={report.jobId}
+                            key={report.id}
                             style={styles.historyCard}
                         >
                             <div
                                 onClick={() =>
-                                    navigate(`/report/${report.jobId}`)
+                                    navigate(`/report/${report.id}`)
                                 }
                                 style={{ cursor: "pointer" }}
                             >
@@ -110,7 +133,7 @@ const Dashboard = () => {
                                 </h4>
                                 <p>
                                     {new Date(
-                                        report.date
+                                        report.created_at
                                     ).toLocaleString()}
                                 </p>
                             </div>
@@ -118,7 +141,7 @@ const Dashboard = () => {
                             <button
                                 style={styles.deleteBtn}
                                 onClick={() =>
-                                    deleteReport(report.jobId)
+                                    deleteReport(report.id)
                                 }
                             >
                                 Delete

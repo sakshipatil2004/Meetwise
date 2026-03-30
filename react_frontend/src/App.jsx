@@ -6,6 +6,7 @@ import Signup from "./pages/Signup";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import ReportDetails from "./pages/ReportDetails";
+import CalendarPage from "./pages/CalendarPage";
 
 function App() {
   const location = useLocation();
@@ -25,6 +26,7 @@ function App() {
         <Route path="/home" element={<Home />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/report/:jobId" element={<ReportDetails />} />
+        <Route path="/calendar" element={<CalendarPage />} />
       </Routes>
     </>
   );

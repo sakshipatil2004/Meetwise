@@ -11,7 +11,6 @@ from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models import Report
-
 from app.services import pdf_generator
 
 
@@ -84,13 +83,10 @@ def chunk_text(text: str, max_words: int = 600, overlap_words: int = 100):
 def generate_summary(text: str, device=-1):
     try:
         summarizer = get_summarizer(device=device)
-        tokenizer = summarizer.tokenizer
-
         text = clean_text(text)
+
         if not text:
             return {"full_summary": "", "highlights": []}
-
-        word_count = len(text.split())
 
         gen_args = {
             "max_length": 300,
@@ -100,24 +96,8 @@ def generate_summary(text: str, device=-1):
             "num_beams": 4
         }
 
-        if word_count < 800:
-            result = summarizer(text, **gen_args)
-            final_summary = result[0]["summary_text"].strip()
-        else:
-            chunks = chunk_text(text)
-            chunk_summaries = []
-
-            for chunk in chunks:
-                result = summarizer(chunk, **gen_args)
-                chunk_summaries.append(result[0]["summary_text"].strip())
-
-            combined_text = " ".join(chunk_summaries)
-
-            if len(tokenizer.encode(combined_text)) > 1024:
-                final_result = summarizer(combined_text, **gen_args)
-                final_summary = final_result[0]["summary_text"].strip()
-            else:
-                final_summary = combined_text
+        result = summarizer(text, **gen_args)
+        final_summary = result[0]["summary_text"].strip()
 
         # Highlights
         nlp = get_nlp_model()
@@ -201,32 +181,12 @@ def transcribe_audio(file_path: str) -> str:
         return f"Error: {str(e)}"
 
 
-def get_audio_duration(file_path: str) -> float:
-    try:
-        result = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", file_path],
-            capture_output=True, text=True
-        )
-        return float(json.loads(result.stdout)["format"]["duration"])
-    except:
-        return 0.0
-
-
-def calculate_timeout(file_path: str) -> int:
-    duration = get_audio_duration(file_path)
-    if duration <= 0:
-        return 60
-    return max(30, min(int(duration * 2), 3600))
-
-
 # ----------------------------
 # MAIN PIPELINE FUNCTION
 # ----------------------------
-def process_file_job(job_id: str, file_path: str, jobs: dict):
+def process_file_job(job_id: str, file_path: str, jobs: dict, user_id: int):
     try:
-        # Job start
         jobs[job_id]["status"] = "processing"
-        jobs[job_id]["timeout"] = calculate_timeout(file_path)
 
         # Step 1: Transcription
         transcript = transcribe_audio(file_path)
@@ -234,23 +194,18 @@ def process_file_job(job_id: str, file_path: str, jobs: dict):
         # Step 2: NLP Processing
         report = process_meeting_transcript(transcript)
 
-        # Step 3: File naming
-        raw_name = os.path.splitext(os.path.basename(file_path))[0]
-        meeting_name = re.sub(r'^[a-f0-9]+_', '', raw_name)
-
         now = datetime.now()
-        meeting_date = now.strftime("%d-%B-%Y")
+        meeting_date_pdf = now.strftime("%d-%B-%Y")
         meeting_time = now.strftime("%I:%M %p")
 
-        # Step 4: Generate PDF
+        # Step 3: Generate PDF
         pdf_path = os.path.join("reports", f"meeting_{job_id}.pdf")
-        os.makedirs(os.path.dirname(pdf_path), exist_ok=True)
 
         pdf_generator.generate_pdf_report(
             file_path=pdf_path,
-            report_title=meeting_name,
-            meeting_name=meeting_name,
-            meeting_date=meeting_date,
+            report_title="Meeting Report",
+            meeting_name="Meeting",
+            meeting_date=meeting_date_pdf,
             meeting_time=meeting_time,
             summary=report["summary"],
             highlights=report["highlights"],
@@ -259,22 +214,45 @@ def process_file_job(job_id: str, file_path: str, jobs: dict):
             participants=["Tony", "Tim", "Jason"]
         )
 
+        # ----------------------------
+        # Step 4: Parse Extracted Date Properly
+        # ----------------------------
+        meeting_date_obj = datetime.now()
+
+        if report["dates"]:
+            raw_date = report["dates"][0]
+
+            # Remove st/nd/rd/th
+            cleaned = re.sub(r'(st|nd|rd|th)', '', raw_date)
+
+            # Try multiple formats
+            for fmt in ("%d %B %Y", "%d %b %Y", "%d/%m/%Y", "%m/%d/%Y"):
+                try:
+                    meeting_date_obj = datetime.strptime(cleaned, fmt)
+                    break
+                except:
+                    continue
+
+        # ----------------------------
         # Step 5: Save to DB
+        # ----------------------------
         db: Session = SessionLocal()
         try:
             new_report = Report(
-                user_id=1,  # TODO: replace with actual user
-                pdf_path=pdf_path
+                user_id=user_id,
+                pdf_path=pdf_path,
+                meeting_date=meeting_date_obj
             )
+
             db.add(new_report)
             db.commit()
+
         except:
             db.rollback()
             raise
         finally:
             db.close()
 
-        # Step 6: Final Job Update
         jobs[job_id].update({
             "status": "done",
             "transcript": transcript,

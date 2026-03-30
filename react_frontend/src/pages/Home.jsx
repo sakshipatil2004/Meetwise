@@ -23,6 +23,7 @@ const Home = () => {
 
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("user_id", user.id);
 
     try {
       setLoading(true);
@@ -71,10 +72,11 @@ const Home = () => {
           jobId: id,
         });
 
-        localStorage.setItem(
-          "reports",
-          JSON.stringify(oldReports)
-        );
+        localStorage.setItem("user", JSON.stringify({
+   id: data.id,
+   name: data.name,
+   email: data.email
+}));
       }
 
       if (data.status === "error") {

@@ -1,8 +1,7 @@
 from app.database import Base
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Date
 from sqlalchemy.orm import relationship
 from datetime import datetime
-
 
 class User(Base):
     __tablename__ = "users"
@@ -12,21 +11,16 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     password = Column(String, nullable=False)
 
-    # 🔥 Relationship to reports
-    reports = relationship("Report", back_populates="user", cascade="all, delete")
+    reports = relationship("Report", back_populates="user")
 
 
 class Report(Base):
     __tablename__ = "reports"
 
     id = Column(Integer, primary_key=True, index=True)
-
-    # ✅ MUST match __tablename__ = "users"
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-
+    user_id = Column(Integer, ForeignKey("users.id"))
     pdf_path = Column(String, nullable=False)
-
+    meeting_date = Column(Date, nullable=True)   # ✅ ADD THIS
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    # 🔥 Relationship back to user
     user = relationship("User", back_populates="reports")

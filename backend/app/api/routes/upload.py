@@ -1,7 +1,7 @@
 
 
 # backend/app/api/routes/upload.py
-from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException
+from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException, Form
 from fastapi.responses import JSONResponse
 import shutil
 import uuid
@@ -21,7 +21,11 @@ logger = logging.getLogger("meetwise.upload")
 logger.setLevel(logging.INFO)
 
 @router.post("/upload-audio")
-async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+async def upload_audio(
+    background_tasks: BackgroundTasks,
+    user_id: int = Form(...),
+    file: UploadFile = File(...)
+):
     """
     Upload an audio/video file; schedules background processing.
     Returns job_id for status polling.
@@ -54,7 +58,7 @@ async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = Fil
 
     # schedule background processing
     try:
-        background_tasks.add_task(process_file_job, job_id, dst_path, jobs)
+        background_tasks.add_task(process_file_job, job_id, dst_path, jobs, user_id)
     except Exception as e:
         logger.exception("Failed to schedule background task")
         jobs[job_id].update({"status": "error", "error": str(e)})
