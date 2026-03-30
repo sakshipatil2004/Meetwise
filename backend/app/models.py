@@ -1,5 +1,5 @@
 from app.database import Base
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Date
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Date, Text 
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
@@ -19,8 +19,14 @@ class Report(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
+
     pdf_path = Column(String, nullable=False)
-    meeting_date = Column(Date, nullable=True)   # ✅ ADD THIS
+
+    summary = Column(Text, nullable=True)   
+    tasks = Column(Text, nullable=True)    
+    dates = Column(Text, nullable=True)  
+
+    meeting_date = Column(Date, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="reports")

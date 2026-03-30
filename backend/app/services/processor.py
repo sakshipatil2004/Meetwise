@@ -239,9 +239,12 @@ def process_file_job(job_id: str, file_path: str, jobs: dict, user_id: int):
         db: Session = SessionLocal()
         try:
             new_report = Report(
-                user_id=user_id,
-                pdf_path=pdf_path,
-                meeting_date=meeting_date_obj
+        user_id=user_id,
+        pdf_path=pdf_path,
+        summary=report["summary"],  # ✅ Save summary
+        tasks=json.dumps(report["tasks"]),  # ✅ Convert list to JSON string
+        dates=json.dumps(report["dates"]),  # ✅ Convert list to JSON string
+        meeting_date=meeting_date_obj
             )
 
             db.add(new_report)

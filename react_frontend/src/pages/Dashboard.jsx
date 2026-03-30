@@ -23,6 +23,8 @@ const Dashboard = () => {
     useEffect(() => {
         const fetchReports = async () => {
             try {
+                if (!user || !user.id) return;
+
                 const res = await fetch(
                     `http://127.0.0.1:8000/api/reports/${user.id}`
                 );
@@ -38,9 +40,7 @@ const Dashboard = () => {
             }
         };
 
-        if (user) {
-            fetchReports();
-        }
+        fetchReports();
     }, [user]);
 
     // 🔍 Filter Reports
