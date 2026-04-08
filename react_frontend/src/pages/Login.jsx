@@ -8,6 +8,7 @@ export default function Login() {
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -16,6 +17,9 @@ export default function Login() {
             setError("Please fill in all fields.");
             return;
         }
+
+        setLoading(true);
+        setError("");
 
         try {
             const response = await fetch("http://127.0.0.1:8000/api/login", {
@@ -33,22 +37,34 @@ export default function Login() {
 
             if (!response.ok) {
                 setError(data.detail || "Login failed");
+                setLoading(false);
                 return;
             }
 
-            localStorage.setItem("user", JSON.stringify(data.user));
+            // ✅ ALWAYS SAVE CLEAN USER OBJECT
+            const userData = {
+                id: data.user.id,
+                name: data.user.name,
+                email: data.user.email,
+            };
 
-            navigate("/home");
+            localStorage.setItem("user", JSON.stringify(userData));
+
+            // Small delay for stability
+            setTimeout(() => {
+                navigate("/home");
+            }, 300);
 
         } catch (err) {
             setError("Server error. Make sure backend is running.");
         }
+
+        setLoading(false);
     };
 
     return (
         <div style={styles.container}>
             <div style={styles.card}>
-
                 <div style={styles.branding}>
                     <h1 style={styles.logo}>MeetWise</h1>
                     <p style={styles.tagline}>Welcome Back</p>
@@ -88,7 +104,7 @@ export default function Login() {
                     </div>
 
                     <button type="submit" style={styles.button}>
-                        Sign In
+                        {loading ? "Signing In..." : "Sign In"}
                     </button>
                 </form>
 
@@ -97,10 +113,6 @@ export default function Login() {
                     <Link to="/signup" style={styles.link}>
                         Create Account
                     </Link>
-                </p>
-
-                <p style={styles.security}>
-                    🔒 Secure login powered by MeetWise
                 </p>
             </div>
         </div>
@@ -186,12 +198,6 @@ const styles = {
         color: "#2563eb",
         textDecoration: "none",
         fontWeight: "500",
-    },
-    security: {
-        marginTop: "15px",
-        textAlign: "center",
-        fontSize: "12px",
-        color: "#666",
     },
     error: {
         color: "red",

@@ -4,29 +4,35 @@ import Navbar from "../components/Navbar";
 
 const Dashboard = () => {
     const navigate = useNavigate();
-    const user = JSON.parse(localStorage.getItem("user"));
 
+    const [user, setUser] = useState(null);
     const [reports, setReports] = useState([]);
     const [search, setSearch] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
 
     const reportsPerPage = 5;
 
-    // 🔐 Auth Guard
+    // 🔐 Load User from localStorage properly
     useEffect(() => {
-        if (!user) {
-            navigate("/");
-        }
-    }, [user, navigate]);
+        const storedUser = localStorage.getItem("user");
 
-    // 📥 Fetch Reports
+        if (!storedUser) {
+            navigate("/login");
+            return;
+        }
+
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+    }, [navigate]);
+
+    // 📥 Fetch Reports (FIXED ROUTE)
     useEffect(() => {
         const fetchReports = async () => {
             try {
                 if (!user || !user.id) return;
 
                 const res = await fetch(
-                    `http://127.0.0.1:8000/api/reports/${user.id}`
+                    `http://127.0.0.1:8000/api/reports/user/${user.id}`
                 );
 
                 if (!res.ok) {
@@ -50,25 +56,11 @@ const Dashboard = () => {
             .includes(search.toLowerCase())
     );
 
-    // 📄 Pagination Logic
+    // 📄 Pagination
     const indexOfLast = currentPage * reportsPerPage;
     const indexOfFirst = indexOfLast - reportsPerPage;
-    const currentReports = filteredReports.slice(
-        indexOfFirst,
-        indexOfLast
-    );
-
-    const totalPages = Math.ceil(
-        filteredReports.length / reportsPerPage
-    );
-
-    // 🗑 Delete Report (Frontend only for now)
-    const deleteReport = (reportId) => {
-        const updatedReports = reports.filter(
-            (r) => r.id !== reportId
-        );
-        setReports(updatedReports);
-    };
+    const currentReports = filteredReports.slice(indexOfFirst, indexOfLast);
+    const totalPages = Math.ceil(filteredReports.length / reportsPerPage);
 
     return (
         <>
@@ -77,7 +69,12 @@ const Dashboard = () => {
             <div style={styles.container}>
                 <h1>Dashboard Analytics</h1>
 
-                {/* Search */}
+                {user && (
+                    <h3 style={{ marginBottom: "20px" }}>
+                        Welcome, {user.name}
+                    </h3>
+                )}
+
                 <input
                     type="text"
                     placeholder="Search reports..."
@@ -86,41 +83,20 @@ const Dashboard = () => {
                     style={styles.searchInput}
                 />
 
-                {/* Analytics */}
                 <div style={styles.analytics}>
                     <div style={styles.card}>
                         <h3>Total Reports</h3>
                         <p>{reports.length}</p>
                     </div>
-
-                    <div style={styles.card}>
-                        <h3>Total Tasks</h3>
-                        <p>
-                            {reports.reduce(
-                                (acc, r) =>
-                                    acc +
-                                    (r.tasks
-                                        ? JSON.parse(r.tasks).length
-                                        : 0),
-                                0
-                            )}
-                        </p>
-                    </div>
                 </div>
 
-                {/* Report History */}
-                <h2 style={{ marginTop: "40px" }}>
-                    Report History
-                </h2>
+                <h2 style={{ marginTop: "40px" }}>Report History</h2>
 
                 {currentReports.length === 0 ? (
                     <p>No reports found.</p>
                 ) : (
                     currentReports.map((report, index) => (
-                        <div
-                            key={report.id}
-                            style={styles.historyCard}
-                        >
+                        <div key={report.id} style={styles.historyCard}>
                             <div
                                 onClick={() =>
                                     navigate(`/report/${report.id}`)
@@ -128,54 +104,49 @@ const Dashboard = () => {
                                 style={{ cursor: "pointer" }}
                             >
                                 <h4>
-                                    Report{" "}
-                                    {indexOfFirst + index + 1}
+                                    Report {indexOfFirst + index + 1}
                                 </h4>
+
                                 <p>
                                     {new Date(
                                         report.created_at
                                     ).toLocaleString()}
                                 </p>
-                            </div>
 
-                            <button
-                                style={styles.deleteBtn}
-                                onClick={() =>
-                                    deleteReport(report.id)
-                                }
-                            >
-                                Delete
-                            </button>
+                                {report.pdf_url && (
+                                    <a
+                                        href={report.pdf_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        View PDF
+                                    </a>
+                                )}
+                            </div>
                         </div>
                     ))
                 )}
 
-                {/* Pagination */}
                 <div style={styles.pagination}>
-                    {Array.from(
-                        { length: totalPages },
-                        (_, i) => (
-                            <button
-                                key={i}
-                                onClick={() =>
-                                    setCurrentPage(i + 1)
-                                }
-                                style={{
-                                    ...styles.pageBtn,
-                                    background:
-                                        currentPage === i + 1
-                                            ? "#2564eb"
-                                            : "#eee",
-                                    color:
-                                        currentPage === i + 1
-                                            ? "white"
-                                            : "black",
-                                }}
-                            >
-                                {i + 1}
-                            </button>
-                        )
-                    )}
+                    {Array.from({ length: totalPages }, (_, i) => (
+                        <button
+                            key={i}
+                            onClick={() => setCurrentPage(i + 1)}
+                            style={{
+                                ...styles.pageBtn,
+                                background:
+                                    currentPage === i + 1
+                                        ? "#2564eb"
+                                        : "#eee",
+                                color:
+                                    currentPage === i + 1
+                                        ? "white"
+                                        : "black",
+                            }}
+                        >
+                            {i + 1}
+                        </button>
+                    ))}
                 </div>
             </div>
         </>
@@ -205,28 +176,15 @@ const styles = {
         background: "white",
         padding: "30px",
         borderRadius: "12px",
-        boxShadow:
-            "0 10px 30px rgba(0,0,0,0.08)",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
         textAlign: "center",
     },
     historyCard: {
         background: "white",
         padding: "20px",
         borderRadius: "10px",
-        boxShadow:
-            "0 5px 15px rgba(0,0,0,0.08)",
+        boxShadow: "0 5px 15px rgba(0,0,0,0.08)",
         marginTop: "15px",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-    },
-    deleteBtn: {
-        padding: "6px 12px",
-        borderRadius: "6px",
-        border: "none",
-        background: "#ef4444",
-        color: "white",
-        cursor: "pointer",
     },
     pagination: {
         marginTop: "20px",

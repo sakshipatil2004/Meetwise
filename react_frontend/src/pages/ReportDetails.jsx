@@ -5,6 +5,7 @@ import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 
 const ReportDetails = () => {
+    // ✅ FIXED HERE
     const { reportId } = useParams();
     const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem("user"));
@@ -12,26 +13,75 @@ const ReportDetails = () => {
     const [report, setReport] = useState(null);
     const [selectedDayTasks, setSelectedDayTasks] = useState([]);
 
+    // ✅ EMAIL STATES
+    const [recipientEmail, setRecipientEmail] = useState("");
+    const [sending, setSending] = useState(false);
+
     useEffect(() => {
         if (!user) navigate("/");
         fetchReport();
     }, []);
-
+    // 
     const fetchReport = async () => {
         try {
             const res = await fetch(
                 `http://127.0.0.1:8000/api/reports/detail/${reportId}`
             );
+
             const data = await res.json();
+
+            if (typeof data.tasks === "string") {
+                data.tasks = JSON.parse(data.tasks);
+            }
+
+            if (typeof data.dates === "string") {
+                data.dates = JSON.parse(data.dates);
+            }
+
             setReport(data);
         } catch (err) {
             console.error("Failed to fetch report", err);
         }
     };
 
-    // -----------------------------
-    // Safe Date Parsing (IMPORTANT)
-    // -----------------------------
+    const highlightedDates =
+        report?.dates?.map((dateStr) => {
+            const parsed = new Date(dateStr);
+            return isNaN(parsed) ? null : parsed;
+        }) || [];
+
+    // ✅ EMAIL FUNCTION
+    const handleSendEmail = async () => {
+        if (!recipientEmail) {
+            alert("Please enter recipient email");
+            return;
+        }
+
+        try {
+            setSending(true);
+
+            const response = await fetch(
+                `http://127.0.0.1:8000/api/reports/send-email/${reportId}?recipient_email=${recipientEmail}`,
+                {
+                    method: "POST",
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                alert(data.detail || "Failed to send email");
+            } else {
+                alert("Email sent successfully ✅");
+                setRecipientEmail("");
+            }
+        } catch (err) {
+            alert("Error sending email ❌");
+        } finally {
+            setSending(false);
+        }
+    };
+
     const meetingDate = report?.meeting_date
         ? new Date(report.meeting_date + "T00:00:00")
         : null;
@@ -41,27 +91,22 @@ const ReportDetails = () => {
             task.date ? new Date(task.date + "T00:00:00") : null
         ) || [];
 
-    // -----------------------------
-    // Calendar Dot Rendering
-    // -----------------------------
+    const isSameDay = (d1, d2) => {
+        return (
+            d1.getFullYear() === d2.getFullYear() &&
+            d1.getMonth() === d2.getMonth() &&
+            d1.getDate() === d2.getDate()
+        );
+    };
+
     const renderTileContent = ({ date, view }) => {
         if (view !== "month") return null;
 
-        const isMeeting =
-            meetingDate &&
-            date.getFullYear() === meetingDate.getFullYear() &&
-            date.getMonth() === meetingDate.getMonth() &&
-            date.getDate() === meetingDate.getDate();
-
-        const isTaskDay = taskDates.some(
-            (taskDate) =>
-                taskDate &&
-                date.getFullYear() === taskDate.getFullYear() &&
-                date.getMonth() === taskDate.getMonth() &&
-                date.getDate() === taskDate.getDate()
+        const isHighlighted = highlightedDates.some(
+            (d) => d && isSameDay(date, d)
         );
 
-        if (isMeeting || isTaskDay) {
+        if (isHighlighted) {
             return (
                 <div
                     style={{
@@ -70,7 +115,7 @@ const ReportDetails = () => {
                         borderRadius: "50%",
                         margin: "0 auto",
                         marginTop: "2px",
-                        background: isMeeting ? "#2564eb" : "#eb9125"
+                        background: "#eb2564"
                     }}
                 />
             );
@@ -79,9 +124,6 @@ const ReportDetails = () => {
         return null;
     };
 
-    // -----------------------------
-    // On Date Click
-    // -----------------------------
     const handleDayClick = (date) => {
         if (!report?.tasks) return;
 
@@ -100,9 +142,6 @@ const ReportDetails = () => {
         setSelectedDayTasks(tasksForDay);
     };
 
-    // -----------------------------
-    // Download PDF
-    // -----------------------------
     const downloadPDF = async () => {
         try {
             const response = await fetch(
@@ -130,12 +169,40 @@ const ReportDetails = () => {
                 {report && (
                     <>
                         <button style={styles.downloadBtn} onClick={downloadPDF}>
-                            ⬇ Download Report PDF
+                            ⬇ Download Report PDFS
                         </button>
+
+                        {/* EMAIL SECTION */}
+                        <div style={{ marginTop: "30px" }}>
+                            <h3>Send Report via Email</h3>
+                            <input
+                                type="email"
+                                placeholder="Enter recipient email"
+                                value={recipientEmail}
+                                onChange={(e) => setRecipientEmail(e.target.value)}
+                                style={{
+                                    padding: "10px",
+                                    width: "280px",
+                                    marginRight: "10px"
+                                }}
+                            />
+                            <button
+                                onClick={handleSendEmail}
+                                disabled={sending}
+                                style={{
+                                    padding: "10px 18px",
+                                    background: "#2564eb",
+                                    color: "white",
+                                    border: "none",
+                                    cursor: "pointer"
+                                }}
+                            >
+                                {sending ? "Sending..." : "Send Email"}
+                            </button>
+                        </div>
 
                         <div style={{ marginTop: "40px" }}>
                             <h2>Meeting Calendar</h2>
-
                             <Calendar
                                 value={meetingDate || new Date()}
                                 onClickDay={handleDayClick}

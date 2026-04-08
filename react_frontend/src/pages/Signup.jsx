@@ -45,12 +45,23 @@ export default function Signup() {
                 return;
             }
 
-            setSuccess("Account created successfully! Redirecting...");
+            // ✅ SAVE USER IN LOCALSTORAGE
+            localStorage.setItem(
+                "user",
+                JSON.stringify({
+                    id: data.id,
+                    name: data.name,
+                    email: data.email,
+                })
+            );
+
+            setSuccess("Account created successfully!");
             setError("");
 
+            // ✅ GO DIRECTLY TO HOME
             setTimeout(() => {
-                navigate("/login");
-            }, 1500);
+                navigate("/home");
+            }, 1000);
 
         } catch (err) {
             setError("Server error. Make sure backend is running.");

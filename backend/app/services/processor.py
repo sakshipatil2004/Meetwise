@@ -1,7 +1,6 @@
 import os
 import re
 import json
-import subprocess
 from datetime import datetime
 
 import spacy
@@ -60,7 +59,7 @@ def get_whisper_model(model_name="base"):
 
 
 # ----------------------------
-# Text Cleaning & Chunking
+# Text Cleaning
 # ----------------------------
 def clean_text(text: str) -> str:
     text = re.sub(r'\b(uh+|um+|ah+|er+)\b', '', text, flags=re.IGNORECASE)
@@ -69,16 +68,8 @@ def clean_text(text: str) -> str:
     return text.strip()
 
 
-def chunk_text(text: str, max_words: int = 600, overlap_words: int = 100):
-    words = text.split()
-    chunks = []
-    for i in range(0, len(words), max_words - overlap_words):
-        chunks.append(" ".join(words[i:i + max_words]))
-    return chunks
-
-
 # ----------------------------
-# Summarization Logic
+# Summarization
 # ----------------------------
 def generate_summary(text: str, device=-1):
     try:
@@ -88,18 +79,17 @@ def generate_summary(text: str, device=-1):
         if not text:
             return {"full_summary": "", "highlights": []}
 
-        gen_args = {
-            "max_length": 300,
-            "min_length": 100,
-            "do_sample": False,
-            "temperature": 0.3,
-            "num_beams": 4
-        }
+        result = summarizer(
+            text,
+            max_length=300,
+            min_length=100,
+            do_sample=False,
+            temperature=0.3,
+            num_beams=4
+        )
 
-        result = summarizer(text, **gen_args)
         final_summary = result[0]["summary_text"].strip()
 
-        # Highlights
         nlp = get_nlp_model()
         doc = nlp(text)
 
@@ -145,10 +135,7 @@ def extract_dates(text):
 
     dates = set(ent.text.strip() for ent in doc.ents if ent.label_ == "DATE")
 
-    regex_dates = re.findall(
-        r'\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b',
-        text
-    )
+    regex_dates = re.findall(r'\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b', text)
 
     for d in regex_dates:
         dates.add(d.strip())
@@ -170,7 +157,7 @@ def process_meeting_transcript(transcript):
 
 
 # ----------------------------
-# Audio Processing
+# Transcription
 # ----------------------------
 def transcribe_audio(file_path: str) -> str:
     try:
@@ -182,23 +169,19 @@ def transcribe_audio(file_path: str) -> str:
 
 
 # ----------------------------
-# MAIN PIPELINE FUNCTION
+# MAIN PIPELINE
 # ----------------------------
 def process_file_job(job_id: str, file_path: str, jobs: dict, user_id: int):
     try:
         jobs[job_id]["status"] = "processing"
 
-        # Step 1: Transcription
         transcript = transcribe_audio(file_path)
-
-        # Step 2: NLP Processing
         report = process_meeting_transcript(transcript)
 
         now = datetime.now()
         meeting_date_pdf = now.strftime("%d-%B-%Y")
         meeting_time = now.strftime("%I:%M %p")
 
-        # Step 3: Generate PDF
         pdf_path = os.path.join("reports", f"meeting_{job_id}.pdf")
 
         pdf_generator.generate_pdf_report(
@@ -214,45 +197,42 @@ def process_file_job(job_id: str, file_path: str, jobs: dict, user_id: int):
             participants=["Tony", "Tim", "Jason"]
         )
 
-        # ----------------------------
-        # Step 4: Parse Extracted Date Properly
-        # ----------------------------
-        meeting_date_obj = datetime.now()
+        meeting_date_obj = now.date()
 
         if report["dates"]:
             raw_date = report["dates"][0]
-
-            # Remove st/nd/rd/th
             cleaned = re.sub(r'(st|nd|rd|th)', '', raw_date)
 
-            # Try multiple formats
             for fmt in ("%d %B %Y", "%d %b %Y", "%d/%m/%Y", "%m/%d/%Y"):
                 try:
-                    meeting_date_obj = datetime.strptime(cleaned, fmt)
+                    meeting_date_obj = datetime.strptime(cleaned, fmt).date()
                     break
                 except:
                     continue
 
         # ----------------------------
-        # Step 5: Save to DB
+        # SAVE TO DATABASE (SAFE)
         # ----------------------------
-        db: Session = SessionLocal()
+        db = SessionLocal()
         try:
             new_report = Report(
-        user_id=user_id,
-        pdf_path=pdf_path,
-        summary=report["summary"],  # ✅ Save summary
-        tasks=json.dumps(report["tasks"]),  # ✅ Convert list to JSON string
-        dates=json.dumps(report["dates"]),  # ✅ Convert list to JSON string
-        meeting_date=meeting_date_obj
+                user_id=user_id,
+                pdf_path=pdf_path,
+                summary=report["summary"],
+                tasks=json.dumps(report["tasks"]),
+                dates=json.dumps(report["dates"]),
+                meeting_date=meeting_date_obj
             )
 
             db.add(new_report)
             db.commit()
+            db.refresh(new_report)
 
-        except:
+            report_id = new_report.id
+
+        except Exception as db_error:
             db.rollback()
-            raise
+            raise db_error
         finally:
             db.close()
 
@@ -260,7 +240,8 @@ def process_file_job(job_id: str, file_path: str, jobs: dict, user_id: int):
             "status": "done",
             "transcript": transcript,
             "report": report,
-            "pdf": pdf_path
+            "pdf": pdf_path,
+            "report_id": report_id
         })
 
     except Exception as e:
