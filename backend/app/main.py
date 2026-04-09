@@ -32,6 +32,7 @@ Base.metadata.create_all(bind=engine)
 # -----------------------------
 origins = [
     "http://localhost:5173",
+    "https://meetwise-alpha.vercel.app/",
 ]
 
 app.add_middleware(
