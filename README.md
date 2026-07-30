@@ -57,31 +57,31 @@ The system combines Speech-to-Text, Natural Language Processing, Transformer-bas
 
 ## Login Page
 
-<img src="c:\Users\ACER\OneDrive\Pictures\Screenshots\Screenshot 2026-04-22 233804.png" width="900">
+<img src="screenshots/Login page.png" width="900">
 
 ---
 
 ## Home Page
 
-<img src="c:\Users\ACER\OneDrive\Pictures\Screenshots\Screenshot 2026-04-22 232727.png" width="900">
+<img src="screenshots/Home page.png" width="900">
 
 ---
 
 ## Meeting Dashboard
 
-<img src="c:\Users\ACER\OneDrive\Pictures\Screenshots\Screenshot 2026-04-22 233200.png" width="900">
+<img src="screenshots/Dashboard.png" width="900">
 
 ---
 
 ## Calendar View
 
-<img src="c:\Users\ACER\OneDrive\Pictures\Screenshots\Screenshot 2026-04-22 233218.png" width="900">
+<img src="screenshots/Calender.png" width="900">
 
 ---
 
 ## Generated PDF Report
 
-<img src="c:\Users\ACER\OneDrive\Pictures\Screenshots\Screenshot 2026-04-22 233305.png" width="900">
+<img src="screenshots/Report.png" width="900">
 
 ---
 
